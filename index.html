@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Asistente de Ruta Accesible - Metro CDMX</title>
+<title>Accessible Route Assistant - Mexico City Metro</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; color: #222; }
@@ -29,30 +29,30 @@
 <body>
 <div class="container">
   <header>
-    <h1>🚇 Asistente de Ruta Accesible — Metro CDMX</h1>
-    <p>Consulta si existe una ruta completa sin escaleras antes de entrar.</p>
+    <h1>🚇 Accessible Route Assistant — Mexico City Metro</h1>
+    <p>Check if a complete step-free path is available before entering.</p>
   </header>
 
-  <div class="simulated">⚠️ Datos simulados para fines de prototipo. No usar para decisiones reales.</div>
+  <div class="simulated">⚠️ Simulated data for prototype purposes only. Do not use for real decisions.</div>
 
   <div class="controls">
-    <label for="origin">Origen:</label><br>
+    <label for="origin">Origin:</label><br>
     <select id="origin"></select><br>
-    <label for="destination">Destino:</label><br>
+    <label for="destination">Destination:</label><br>
     <select id="destination"></select><br>
-    <button onclick="checkRoute()">Consultar ruta accesible</button>
-    <button onclick="reportBroken()" style="background:#c62828;">Reportar elevador roto</button>
+    <button onclick="checkRoute()">Check accessible route</button>
+    <button onclick="reportBroken()" style="background:#c62828;">Report broken elevator</button>
   </div>
 
   <div id="map"></div>
 
   <div id="statusCard" class="yellow">
-    <strong>Selecciona un origen y un destino para consultar.</strong>
+    <strong>Select an origin and a destination to check the route.</strong>
   </div>
 
   <div class="footer">
-    Esta herramienta no guarda datos personales. Los reportes son anónimos.<br>
-    Shadow clause: la información no se usa para vigilancia ni extracción.
+    This tool does not store personal data. Reports are anonymous.<br>
+    Shadow clause: information is not used for surveillance or extraction.
   </div>
 </div>
 
@@ -95,8 +95,8 @@ function checkRoute() {
 
   if (markerA) map.removeLayer(markerA);
   if (markerB) map.removeLayer(markerB);
-  markerA = L.marker([a.lat, a.lng]).addTo(map).bindPopup("Origen: " + a.name).openPopup();
-  markerB = L.marker([b.lat, b.lng]).addTo(map).bindPopup("Destino: " + b.name);
+  markerA = L.marker([a.lat, a.lng]).addTo(map).bindPopup("Origin: " + a.name).openPopup();
+  markerB = L.marker([b.lat, b.lng]).addTo(map).bindPopup("Destination: " + b.name);
   map.fitBounds([[a.lat, a.lng], [b.lat, b.lng]]);
 
   const worstUpdated = Math.max(a.updated, b.updated);
@@ -104,24 +104,24 @@ function checkRoute() {
   let confidence, cls, message;
 
   if (worstUpdated <= 15 && bothAccessible) {
-    confidence = "Alta"; cls = "green";
-    message = "✅ Ruta sin escaleras reportada como disponible.";
+    confidence = "High"; cls = "green";
+    message = "✅ Step-free route reported as available.";
   } else if (worstUpdated > 60 || (!a.accessible && !b.accessible)) {
-    confidence = "Baja"; cls = "red";
-    message = "❌ No se puede confirmar una ruta completa sin escaleras. Considera una estación alterna o confirma en el sitio.";
+    confidence = "Low"; cls = "red";
+    message = "❌ A complete step-free route cannot be confirmed. Consider an alternative station or confirm on site.";
   } else {
-    confidence = "Media"; cls = "yellow";
-    message = "⚠️ Información limitada. No hay evidencia suficiente para confirmar toda la ruta. Confirma en la estación antes de bajar.";
+    confidence = "Medium"; cls = "yellow";
+    message = "⚠️ Limited information. There is not enough evidence to confirm the full route. Please confirm at the station before going down.";
   }
 
   card.className = cls;
   card.innerHTML = `
     <strong>${message}</strong>
     <div class="meta">
-      <div>Última actualización: hace ${worstUpdated} min</div>
-      <div>Cobertura: 2 de 2 estaciones consultadas</div>
-      <div>Confianza: ${confidence}</div>
-      <div>Condición 3 activa: la incertidumbre se muestra siempre.</div>
+      <div>Last update: ${worstUpdated} min ago</div>
+      <div>Coverage: 2 of 2 stations checked</div>
+      <div>Confidence: ${confidence}</div>
+      <div>Condition 3 active: uncertainty is always visible.</div>
     </div>
   `;
 }
@@ -130,7 +130,7 @@ function reportBroken() {
   const i = document.getElementById("origin").value;
   stations[i].accessible = false;
   stations[i].updated = 0;
-  alert("Reporte enviado (simulado). La estación " + stations[i].name + " ahora aparece como no accesible.");
+  alert("Report sent (simulated). Station " + stations[i].name + " now shows as not accessible.");
   checkRoute();
 }
 
