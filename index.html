@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente de Ruta Accesible - Metro CDMX</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; color: #222; }
+  header { background: #6a1b9a; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 5px 0 0; font-size: 13px; }
+  .container { max-width: 800px; margin: auto; }
+  .controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+  select, button { padding: 10px; font-size: 15px; margin: 5px 5px 5px 0; border-radius: 5px; border: 1px solid #ccc; }
+  button { background: #6a1b9a; color: white; border: none; cursor: pointer; }
+  button:hover { background: #4a148c; }
+  #statusCard { padding: 20px; border-radius: 8px; margin-bottom: 15px; font-size: 16px; }
+  .green { background: #c8e6c9; border-left: 6px solid #2e7d32; }
+  .yellow { background: #fff9c4; border-left: 6px solid #f9a825; }
+  .red { background: #ffcdd2; border-left: 6px solid #c62828; }
+  .meta { font-size: 13px; color: #555; margin-top: 10px; }
+  .meta div { margin: 3px 0; }
+  #map { height: 300px; border-radius: 8px; margin-bottom: 15px; }
+  .footer { font-size: 12px; color: #777; text-align: center; margin-top: 15px; padding: 10px; background: white; border-radius: 8px; }
+  .simulated { background: #ffe0b2; padding: 8px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🚇 Asistente de Ruta Accesible — Metro CDMX</h1>
+    <p>Consulta si existe una ruta completa sin escaleras antes de entrar.</p>
+  </header>
+
+  <div class="simulated">⚠️ Datos simulados para fines de prototipo. No usar para decisiones reales.</div>
+
+  <div class="controls">
+    <label for="origin">Origen:</label><br>
+    <select id="origin"></select><br>
+    <label for="destination">Destino:</label><br>
+    <select id="destination"></select><br>
+    <button onclick="checkRoute()">Consultar ruta accesible</button>
+    <button onclick="reportBroken()" style="background:#c62828;">Reportar elevador roto</button>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="statusCard" class="yellow">
+    <strong>Selecciona un origen y un destino para consultar.</strong>
+  </div>
+
+  <div class="footer">
+    Esta herramienta no guarda datos personales. Los reportes son anónimos.<br>
+    Shadow clause: la información no se usa para vigilancia ni extracción.
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const stations = [
+  { name: "Centro Médico", lat: 19.4064, lng: -99.1555, accessible: true, updated: 12 },
+  { name: "Universidad", lat: 19.3244, lng: -99.1740, accessible: true, updated: 8 },
+  { name: "Balderas", lat: 19.4272, lng: -99.1494, accessible: false, updated: 45 },
+  { name: "Pantitlán", lat: 19.4150, lng: -99.0722, accessible: false, updated: 90 },
+  { name: "Tacubaya", lat: 19.4032, lng: -99.1871, accessible: true, updated: 20 },
+  { name: "Hidalgo", lat: 19.4375, lng: -99.1470, accessible: true, updated: 5 },
+  { name: "Bellas Artes", lat: 19.4354, lng: -99.1412, accessible: true, updated: 30 },
+  { name: "Chabacano", lat: 19.4084, lng: -99.1342, accessible: true, updated: 15 },
+  { name: "Ermita", lat: 19.3619, lng: -99.1408, accessible: false, updated: 120 },
+  { name: "Tasqueña", lat: 19.3447, lng: -99.1425, accessible: true, updated: 25 }
+];
+
+let map, markerA, markerB;
+
+function init() {
+  const o = document.getElementById("origin");
+  const d = document.getElementById("destination");
+  stations.forEach((s, i) => {
+    o.innerHTML += `<option value="${i}">${s.name}</option>`;
+    d.innerHTML += `<option value="${i}">${s.name}</option>`;
+  });
+  d.selectedIndex = 1;
+
+  map = L.map('map').setView([19.40, -99.14], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+}
+
+function checkRoute() {
+  const a = stations[document.getElementById("origin").value];
+  const b = stations[document.getElementById("destination").value];
+  const card = document.getElementById("statusCard");
+
+  if (markerA) map.removeLayer(markerA);
+  if (markerB) map.removeLayer(markerB);
+  markerA = L.marker([a.lat, a.lng]).addTo(map).bindPopup("Origen: " + a.name).openPopup();
+  markerB = L.marker([b.lat, b.lng]).addTo(map).bindPopup("Destino: " + b.name);
+  map.fitBounds([[a.lat, a.lng], [b.lat, b.lng]]);
+
+  const worstUpdated = Math.max(a.updated, b.updated);
+  const bothAccessible = a.accessible && b.accessible;
+  let confidence, cls, message;
+
+  if (worstUpdated <= 15 && bothAccessible) {
+    confidence = "Alta"; cls = "green";
+    message = "✅ Ruta sin escaleras reportada como disponible.";
+  } else if (worstUpdated > 60 || (!a.accessible && !b.accessible)) {
+    confidence = "Baja"; cls = "red";
+    message = "❌ No se puede confirmar una ruta completa sin escaleras. Considera una estación alterna o confirma en el sitio.";
+  } else {
+    confidence = "Media"; cls = "yellow";
+    message = "⚠️ Información limitada. No hay evidencia suficiente para confirmar toda la ruta. Confirma en la estación antes de bajar.";
+  }
+
+  card.className = cls;
+  card.innerHTML = `
+    <strong>${message}</strong>
+    <div class="meta">
+      <div>Última actualización: hace ${worstUpdated} min</div>
+      <div>Cobertura: 2 de 2 estaciones consultadas</div>
+      <div>Confianza: ${confidence}</div>
+      <div>Condición 3 activa: la incertidumbre se muestra siempre.</div>
+    </div>
+  `;
+}
+
+function reportBroken() {
+  const i = document.getElementById("origin").value;
+  stations[i].accessible = false;
+  stations[i].updated = 0;
+  alert("Reporte enviado (simulado). La estación " + stations[i].name + " ahora aparece como no accesible.");
+  checkRoute();
+}
+
+init();
+</script>
+</body>
+</html>
